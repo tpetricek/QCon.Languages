@@ -1,0 +1,6 @@
+source https://nuget.org/api/v2
+
+nuget DiffSharp
+nuget FSharp.Data
+nuget XPlot.GoogleCharts
+nuget Suave

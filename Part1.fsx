@@ -33,8 +33,8 @@ let sampleFile = cleanDir + "Portuguese.txt"
 // from the feature file and *all text* from the sampleFile. To do 
 // this, use "File.ReadAllLines" and "File.ReadAllText"
 
-let features = __
-let sampleText = __
+let features = File.ReadAllLines(featuresFile)
+let sampleText = File.ReadAllText(sampleFile)
 
 
 // ----------------------------------------------------------------------------
@@ -74,8 +74,10 @@ let counts =
   //  - Use 'Seq.pairwise' to turn it into pairs of letters
   //  - Use 'Seq.map' to turn the letter pairs into strings
   //  - Use 'Seq.countBy' to count how many times each pair appears
-  []
-
+  sampleText
+  |> Seq.pairwise
+  |> Seq.map (fun (c1, c2) -> String [|c1; c2|])
+  |> Seq.countBy id
 
 // ----------------------------------------------------------------------------
 // DEMO: Draws a column chart showing the 50 most common letter pairs
@@ -126,8 +128,13 @@ let total = float (String.length sampleText - 1)
 // Create a lookup table from 'counts' (call it 'countLookup'). Then
 // calculate probability for all features using "features |> Array.map" and
 // returning 1e-10 if the feature is not found or "count / total" otherwise
-let probabilities = []
+let countLookup = dict counts
 
+let probabilities = 
+  features |> Array.map (fun feature ->
+    if countLookup.ContainsKey feature then
+      float countLookup.[feature] / float total
+    else 1e-10 )
 
 // ----------------------------------------------------------------------------
 // DEMO: Draws a column chart showing the probabilities of features
@@ -145,11 +152,20 @@ Chart.Column(Seq.zip features probabilities)
 // Also, change it so that it processes the 'text' given as a parameter
 
 let getFeatureVector text = 
-  let counts = __
-  let total = __
-  let countLookup = __
-  features |> Array.map (fun feature -> __)
+  let counts = 
+    text
+    |> Seq.pairwise
+    |> Seq.map (fun (c1, c2) -> String [|c1; c2|])
+    |> Seq.countBy id
 
+  let total = counts |> Seq.sumBy snd 
+
+  let countLookup = dict counts
+
+  features |> Array.map (fun feature ->
+    if countLookup.ContainsKey feature then
+      float countLookup.[feature] / float total
+    else 1e-10 )
 
 // Now, let's run your 'getFeatureVector' function on all languages in the
 // cleaned-up folder to build a lookup that gives us "feature vector"
@@ -166,9 +182,6 @@ let languageFeatures =
       getFeatureVector (File.ReadAllText(file)) )
 
 let byLangauge = dict languageFeatures
-
-// DEMO: Draw a column chart comparing three languages in a single chart
-// (We should see that Portuguese is closer to Spanish than English)
 
 [ Seq.zip features byLangauge.["Spanish"]
   Seq.zip features byLangauge.["Portuguese"]
@@ -204,10 +217,8 @@ module DEMO3 =
 
 
 let distance (features1:float[]) (features2:float[]) = 
-    // Calculate the Euclidean distance using Array.map2 and Array.sum
-    __
-
-
+    Array.map2 (fun x y -> (x - y) * (x - y)) features1 features2
+    |> Array.sum
 // Check how our distance function works for a few languages
 distance (byLangauge.["Portuguese"]) (byLangauge.["Spanish"])
 distance (byLangauge.["Portuguese"]) (byLangauge.["English"])
@@ -222,8 +233,11 @@ distance (byLangauge.["Portuguese"]) (byLangauge.["Czech"])
 // "Seq.head" functions to do this.
 
 let classifyLanguage text =
-    __
-
+    let textFeatures = getFeatureVector text
+    languageFeatures 
+    |> Array.sortBy (fun (lang, vect) -> distance vect textFeatures)
+    |> Seq.head
+    |> fst
 
 // Some examples    
 classifyLanguage "tohle je nejaky text napsany v ceskem jazyce"

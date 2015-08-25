@@ -21,7 +21,21 @@ let cleanDir = __SOURCE_DIRECTORY__ + "/clean/"
 let featuresFile = __SOURCE_DIRECTORY__ + "/features.txt"
 let features = File.ReadAllLines(featuresFile)
 
-let getFeatureVector text = __
+let getFeatureVector text = 
+  let counts = 
+    text
+    |> Seq.pairwise
+    |> Seq.map (fun (c1, c2) -> String [|c1; c2|])
+    |> Seq.countBy id
+
+  let total = counts |> Seq.sumBy snd 
+
+  let countLookup = dict counts
+
+  features |> Array.map (fun feature ->
+    if countLookup.ContainsKey feature then
+      float countLookup.[feature] / float total
+    else 1e-10 )
 
 // ----------------------------------------------------------------------------
 // DEMO: To implement the training for our neuron, we'll use a library
@@ -116,8 +130,9 @@ let sigmoid arg = 1.0/(1.0 + exp(-arg))
 //   sigmoid (f1*w1 + f2*w2 + f3*w3)
 //
 
-let predict weights features = __
-
+let predict weights features = 
+    let arg = Array.map2 (fun x w -> w * x) features weights |> Array.sum
+    sigmoid arg
 
 // The error function takes the training data & current weights and calculates
 // how good our result is. That is, for all the items in the input data, we get
@@ -152,7 +167,7 @@ let gradient = errorGradient initialWeights
 // Now we have the gradient and we want to calculate new weights such that:
 //   newWeight[i] = oldWeight[i] - gradient[i]*eta
 // We can nicely do this using the 'Array.map2' function!
-let newWeights = __
+let newWeights = Array.map2 (fun w g -> w - g*eta) initialWeights gradient
 
 // Assuming your training improved the weights, 
 // the error should be getting smaleler!
@@ -168,8 +183,8 @@ let rec gradientDescent steps weights =
   if steps > 5000 then 
     weights
   else
-    let gradient = __   // TODO: Calculate new gradient!
-    let newWeights = __ // TODO: Calculate new weigths!
+    let gradient = errorGradient weights
+    let newWeights = Array.map2 (fun w g -> w - g*eta) weights gradient
     gradientDescent (steps+1) newWeights
 
 
